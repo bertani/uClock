@@ -39,47 +39,23 @@ R2 EQU 0x42
 
 TMP1 EQU 0x50
 CALIBRATOR EQU 0x60
+TMP2 EQU 0x51
 
 ORG 0x000
-goto start
+goto init
+ORG 0x004
+ir:
+
+bcf INTCON, T0IF
+incf s_0
+
+movlw 0x43
+movwf TMR0
+retfie
+
 
 w_adjust:
   return
-
-wait_l:
-call wait
-call wait
-call wait
-call wait
-call wait
-call wait
-call wait
-call wait
-call wait
-call wait
-return
-wait:
-	movlw	0xBE
-	movwf	R1
-longloop1:
-	movlw	0xBE
-	movwf	R2
-longloop2:
-	decfsz	R2,1
-	goto	longloop2
-	decfsz	R1,1
-	goto	longloop1
-	return
-
-
-
-
-
-
-
-
-
-
 
 ;FUNCTIONS
 
@@ -106,39 +82,36 @@ to_led:
   retlw b'01111111'
   retlw b'01111101'
 
-start:
+
+init:
   bsf STATUS, 5
-  movlw 0x00 ;usiamo tutte le linee come output
+  bcf PCON, 3 ; setta INTOSC a 48 KHz
+  movlw 0x43
+  movwf TMR0 ; inizializza TMR0
+  movlw b'00000101' ; 1:64
+  movwf OPTION_REG ; setta prescaler per TMR0
+  bsf INTCON, T0IE
+  bsf INTCON, GIE ; abilita gli interrupt
+  movlw 0x00 ; usiamo tutte le linee come output
   movwf TRISA
   movwf TRISB
   bcf STATUS, 5
   movlw 0x00
   movwf TMP
-
-
-
-
-movlw 0x00
-movwf s_0
-movwf s_1
-movwf m_0
-movwf m_1
-movwf h_0
-movwf h_1
-
+  
+  movlw 0x00
+  movwf s_0
+  movwf s_1
+  movlw 0x06
+  movwf m_0
+  movlw 0x03
+  movwf m_1
+  movlw 0x01
+  movwf h_0
+  movlw 0x02
+  movwf h_1
 
 loop:
-  ;movlw b'10000000';movlw 0xff
-  ;movwf PORTA
-  ;incf TMP, 0
-  ;movwf TMP
-  ;call to_led
-  ;movwf TMP1
-  ;comf TMP1, 0
-  ;movwf PORTB
-  ;call wait
-
-
   movf s_0, 0
   call to_led
   movwf TMP1
@@ -147,8 +120,7 @@ loop:
   movlw b'10000000'
   movwf PORTA
   call w_adjust
-
-
+  
   movlw b'00000000'
   movwf PORTA
   movf s_1, 0
@@ -159,7 +131,7 @@ loop:
   movlw b'01000000'
   movwf PORTA
   call w_adjust
-
+  
   movlw b'00000000'
   movwf PORTA
   movf m_0, 0
@@ -170,7 +142,7 @@ loop:
   movlw b'00001000'
   movwf PORTA
   call w_adjust
-
+  
   movlw b'00000000'
   movwf PORTA
   movf m_1, 0
@@ -181,7 +153,7 @@ loop:
   movlw b'00000100'
   movwf PORTA
   call w_adjust
-
+  
   movlw b'00000000'
   movwf PORTA
   movf h_0, 0
@@ -192,7 +164,7 @@ loop:
   movlw b'00000010'
   movwf PORTA
   call w_adjust
-
+  
   movlw b'00000000'
   movwf PORTA
   movf h_1, 0
@@ -206,9 +178,9 @@ loop:
   
   movlw b'00000000'
   movwf PORTA
-
-  ;calcoli vari
-  movlw 0x08
+  
+  
+  movlw 0x09
   subwf s_0, 0
   movwf CALIBRATOR
   decfsz CALIBRATOR, 0
@@ -217,8 +189,7 @@ loop:
   movlw 0x00
   movwf s_0
 lol:
-
-  movlw 0x09
+  movlw 0x05
   subwf s_1, 0
   movwf CALIBRATOR
   decfsz CALIBRATOR, 0
@@ -227,8 +198,6 @@ lol:
   movlw 0x00
   movwf s_1
 lol_:
-
-
   movlw 0x09
   subwf m_0, 0
   movwf CALIBRATOR
@@ -238,8 +207,7 @@ lol_:
   movlw 0x00
   movwf m_0
 lol__:
-
-  movlw 0x09
+  movlw 0x05
   subwf m_1, 0
   movwf CALIBRATOR
   decfsz CALIBRATOR, 0
@@ -248,19 +216,27 @@ lol__:
   movlw 0x00
   movwf m_1
 lol___:
-
-  movlw 0x09
+  movlw 0x03
   subwf h_0, 0
   movwf CALIBRATOR
   decfsz CALIBRATOR, 0
   goto lol____
+  movf h_1
+  movwf TMP1
+  decfsz TMP1, 0
+  goto lol____
+  movlw 0x00
+  movwf h_0
+  movwf 0x00
+lol____:
+  movlw 0x09
+  subwf h_0, 0
+  movwf CALIBRATOR
+  decfsz CALIBRATOR, 0
+  goto lol_____
   incf h_1
   movlw 0x00
   movwf h_0
-lol____:
-
-  incf s_0
-  ;incf TMP, 0
-
+lol_____:
   goto loop
 END
