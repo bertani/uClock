@@ -21,43 +21,59 @@
 
 __CONFIG _INTOSC_OSC_NOCLKOUT & _MCLRE_OFF & _WDT_OFF & _PWRTE_ON & _BODEN_OFF & _LVP_OFF & _DATA_CP_OFF & _CP_OFF
 
-H_ EQU 0x20
-M_ EQU 0x21
-S_ EQU 0x22
+INDF EQU 0x00
+FSR EQU 0x04
 
-h_0 EQU 0x30
-h_1 EQU 0x31
-m_0 EQU 0x32
-m_1 EQU 0x33
-s_0 EQU 0x34
-s_1 EQU 0x35
+s_0 EQU 0x20
+s_1 EQU 0x21
+m_0 EQU 0x22
+m_1 EQU 0x23
+h_0 EQU 0x24
+h_1 EQU 0x25
 
-TMP EQU 0x40
+TMP EQU 0x30
+TMP0 EQU 0x31
+TMP1 EQU 0x32
 
-R1 EQU 0x41
-R2 EQU 0x42
+I EQU 0x40
+J EQU 0x41
 
-TMP1 EQU 0x50
+LED_DRIVER_C EQU 0x50
+
 CALIBRATOR EQU 0x60
-TMP2 EQU 0x51
 
 ORG 0x000
-goto init
+  goto init
 ORG 0x004
 ir:
-
-bcf INTCON, T0IF
-incf s_0
-
-movlw 0x43
-movwf TMR0
-retfie
-
-
-w_adjust:
-  return
+  incf s_0 ; incremento unita' di secondo
+  bcf INTCON, T0IF ; restart ricezione interrupt TMR0
+  movlw 0x43
+  movwf TMR0 ; reinizializzazione di TMR0
+  retfie
 
 ;FUNCTIONS
+is_min: ; I < J ? W = 1 : W = 0
+  movf J, 0
+  subwf I, 0
+  btfss STATUS, C
+  goto is_min_y
+  goto is_min_f
+is_min_y:
+  movlw 0x01
+  return
+is_min_f:
+  movlw 0x00
+  return
+
+led_driver_offset:
+  addwf PCL, 1
+  retlw b'10000000'
+  retlw b'01000000'
+  retlw b'00001000'
+  retlw b'00000100'
+  retlw b'00000010'
+  retlw b'00000001'
 
 to_led:
 ;12345678
@@ -69,8 +85,14 @@ to_led:
 ;6 = sotto
 ;7 = sinistra basso
 ;8 = destra basso
+  movwf I
+  movlw 0x0A
+  movwf J
+  call is_min
+  movwf TMP0
+  btfss TMP0, 0
+  retlw b'01011111'
   addwf PCL, 1
-  ;nop
   retlw b'01011111'
   retlw b'00001001'
   retlw b'01101110'
@@ -82,104 +104,7 @@ to_led:
   retlw b'01111111'
   retlw b'01111101'
 
-
-init:
-  bsf STATUS, 5
-  bcf PCON, 3 ; setta INTOSC a 48 KHz
-  movlw 0x43
-  movwf TMR0 ; inizializza TMR0
-  movlw b'00000101' ; 1:64
-  movwf OPTION_REG ; setta prescaler per TMR0
-  bsf INTCON, T0IE
-  bsf INTCON, GIE ; abilita gli interrupt
-  movlw 0x00 ; usiamo tutte le linee come output
-  movwf TRISA
-  movwf TRISB
-  bcf STATUS, 5
-  movlw 0x00
-  movwf TMP
-  
-  movlw 0x00
-  movwf s_0
-  movwf s_1
-  movlw 0x06
-  movwf m_0
-  movlw 0x03
-  movwf m_1
-  movlw 0x01
-  movwf h_0
-  movlw 0x02
-  movwf h_1
-
-loop:
-  movf s_0, 0
-  call to_led
-  movwf TMP1
-  comf TMP1, 0
-  movwf PORTB
-  movlw b'10000000'
-  movwf PORTA
-  call w_adjust
-  
-  movlw b'00000000'
-  movwf PORTA
-  movf s_1, 0
-  call to_led
-  movwf TMP1
-  comf TMP1, 0
-  movwf PORTB
-  movlw b'01000000'
-  movwf PORTA
-  call w_adjust
-  
-  movlw b'00000000'
-  movwf PORTA
-  movf m_0, 0
-  call to_led
-  movwf TMP1
-  comf TMP1, 0
-  movwf PORTB
-  movlw b'00001000'
-  movwf PORTA
-  call w_adjust
-  
-  movlw b'00000000'
-  movwf PORTA
-  movf m_1, 0
-  call to_led
-  movwf TMP1
-  comf TMP1, 0
-  movwf PORTB
-  movlw b'00000100'
-  movwf PORTA
-  call w_adjust
-  
-  movlw b'00000000'
-  movwf PORTA
-  movf h_0, 0
-  call to_led
-  movwf TMP1
-  comf TMP1, 0
-  movwf PORTB
-  movlw b'00000010'
-  movwf PORTA
-  call w_adjust
-  
-  movlw b'00000000'
-  movwf PORTA
-  movf h_1, 0
-  call to_led
-  movwf TMP1
-  comf TMP1, 0
-  movwf PORTB
-  movlw b'00000001'
-  movwf PORTA
-  call w_adjust
-  
-  movlw b'00000000'
-  movwf PORTA
-  
-  
+clock_values_update:
   movlw 0x09
   subwf s_0, 0
   movwf CALIBRATOR
@@ -238,5 +163,60 @@ lol____:
   movlw 0x00
   movwf h_0
 lol_____:
+  return
+
+init:
+  bsf STATUS, 5
+  bcf PCON, 3 ; setta INTOSC a 48 KHz
+  movlw 0x43
+  movwf TMR0 ; inizializza TMR0
+  movlw b'00000101' ; 1:64
+  movwf OPTION_REG ; setta prescaler per TMR0
+  bsf INTCON, T0IE
+  bsf INTCON, GIE ; abilita gli interrupt
+  movlw 0x00 ; usiamo tutte le linee come output
+  movwf TRISA
+  movwf TRISB
+  bcf STATUS, 5
+  
+  movlw 0x00
+  movwf s_0
+  movwf s_1
+  movlw 0x06
+  movwf m_0
+  movlw 0x03
+  movwf m_1
+  movlw 0x01
+  movwf h_0
+  movlw 0x02
+  movwf h_1
+
+loop:
+  movlw 0x00
+  movwf LED_DRIVER_C ; inizializza il led driver
+  movlw 0x20
+  movwf FSR
+led_driver_loop:
+  movf LED_DRIVER_C
+  movwf I
+  movlw 0x06
+  movwf J
+  call is_min
+  movwf TMP0
+  btfss TMP0, 0 ; se LED_DRIVER_C < 6
   goto loop
+  movlw b'00000000'
+  movf INDF, 0 ; lettura registro tramite indirizzamento indiretto
+  call to_led
+  movwf TMP1
+  comf TMP1, 0
+  movwf PORTB
+  movlw b'10000000'
+  movf LED_DRIVER_C
+  call led_driver_offset
+  movwf PORTA
+  incf LED_DRIVER_C
+  incf FSR
+  call clock_values_update
+  goto led_driver_loop
 END
