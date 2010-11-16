@@ -40,22 +40,20 @@ J EQU 0x41
 
 LED_DRIVER_C EQU 0x42
 
+FLAG EQU 0x45
+
 ORG 0x000
   goto init
 ORG 0x004
 ir:
   movwf TMPX
-  movlw 0x00
-  movwf PORTB
-  incf s_0 ; incremento unita' di secondo
-  call clock_values_update
+  bsf FLAG, 0
   bcf INTCON, T0IF ; restart ricezione interrupt TMR0
   movlw 0x20
   movwf TMR0 ; reinizializzazione di TMR0
   movf TMPX, 0
   retfie
 
-;FUNCTIONS
 is_min: ; I < J ? W = 1 : W = 0
   movf J, 0
   subwf I, 0
@@ -79,15 +77,6 @@ led_driver_offset:
   retlw b'00000001'
 
 to_led:
-;12345678
-;1 = none
-;2 = sopra
-;3 = centrale
-;4 = sinistra alto
-;5 = destra alto
-;6 = sotto
-;7 = sinistra basso
-;8 = destra basso
   movwf I
   movlw 0x0A
   movwf J
@@ -205,18 +194,19 @@ init:
   movlw 0x00 ; usiamo tutte le linee come output
   movwf TRISA
   movwf TRISB
+  bsf TRISA, 4 ; PORTA<4> come input
   bcf STATUS, 5
   
   movlw 0x00
   movwf s_0
   movwf s_1
-  movlw 0x07
+  movlw 0x05
   movwf m_0
-  movlw 0x03
+  movlw 0x04
   movwf m_1
-  movlw 0x01
+  movlw 0x03
   movwf h_0
-  movlw 0x02
+  movlw 0x01
   movwf h_1
 
 loop:
@@ -224,7 +214,22 @@ loop:
   movwf LED_DRIVER_C ; inizializza il led driver
   movlw 0x20
   movwf FSR
+  ; inizio controllo FLAG
+  btfss FLAG, 0
+  goto no_flag
+  incf s_0 ; incremento unita' di secondo
+  call clock_values_update
+no_flag:
+  bcf FLAG, 0
+  ; fine controllo FLAG
+  btfsc PORTA, 4 ; se PORTA<5> == 0 => aumenta di 10 secondi e aggiorna
+  goto led_driver_loop
+  movlw 0x10
+  addwf s_0, 1
+  call clock_values_update
 led_driver_loop:
+  movlw 0x00
+  movwf PORTA
   movf LED_DRIVER_C, 0
   movwf I
   movlw 0x06
@@ -233,8 +238,6 @@ led_driver_loop:
   movwf TMP0
   btfss TMP0, 0 ; se LED_DRIVER_C < 6
   goto loop
-  movlw b'00000000'
-  movwf PORTA
   movf INDF, 0 ; lettura registro tramite indirizzamento indiretto
   call to_led
   movwf TMP1
