@@ -1,7 +1,6 @@
 ; binaryClock, just another binary clock written in 8-bit-microchip-Assembly
 ;
 ; Copyright (C) 2010 Thomas Bertani <sylar@anche.no>
-; portions Copyright (C) 2010 Giacomo Mariani
 ;
 ; This program is free software; you can redistribute it and/or modify
 ; it under the terms of the GNU General Public License, version 3, as
