@@ -196,18 +196,6 @@ init:
   movwf TRISB
   bsf TRISA, 4 ; PORTA<4> come input
   bcf STATUS, 5
-  
-  movlw 0x00
-  movwf s_0
-  movwf s_1
-  movlw 0x05
-  movwf m_0
-  movlw 0x04
-  movwf m_1
-  movlw 0x03
-  movwf h_0
-  movlw 0x01
-  movwf h_1
 
 loop:
   movlw 0x00
