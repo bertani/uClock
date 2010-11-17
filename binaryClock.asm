@@ -31,41 +31,20 @@ h_0 EQU 0x24
 h_1 EQU 0x25
 
 TMP EQU 0x30
-TMP0 EQU 0x31
-TMP1 EQU 0x32
-TMPX EQU 0x33
-
-I EQU 0x40
-J EQU 0x41
-
-LED_DRIVER_C EQU 0x42
-
-FLAG EQU 0x45
+FLAG EQU 0x31
+LED_DRIVER_C EQU 0x32
 
 ORG 0x000
   goto init
 ORG 0x004
 ir:
-  movwf TMPX
+  movwf TMP
   bsf FLAG, 0
   bcf INTCON, T0IF ; restart ricezione interrupt TMR0
   movlw 0x20
   movwf TMR0 ; reinizializzazione di TMR0
-  movf TMPX, 0
+  movf TMP, 0
   retfie
-
-is_min: ; I < J ? W = 1 : W = 0
-  movf J, 0
-  subwf I, 0
-  btfss STATUS, C
-  goto is_min_y
-  goto is_min_f
-is_min_y:
-  movlw 0x01
-  return
-is_min_f:
-  movlw 0x00
-  return
 
 led_driver_offset:
   addwf PCL, 1
@@ -77,109 +56,91 @@ led_driver_offset:
   retlw b'00000001'
 
 to_led:
-  movwf I
-  movlw 0x0A
-  movwf J
-  call is_min
-  movwf TMP0
-  btfss TMP0, 0
-  retlw b'00000000'
-  movf I, 0
+  movwf TMP
+  sublw 0x09
+  btfss STATUS, C
+  retlw 0xFF
+  movf TMP, 0
   addwf PCL, 1
-  retlw b'01011111'
-  retlw b'00001001'
-  retlw b'01101110'
-  retlw b'01101101'
-  retlw b'00111001'
-  retlw b'01110101';5
-  retlw b'01110111'
-  retlw b'01001001'
-  retlw b'01111111'
-  retlw b'01111101'
+  retlw b'10100000';b'01011111'
+  retlw b'11110110'
+  retlw b'10010001'
+  retlw b'10010010'
+  retlw b'11000110'
+  retlw b'10001010';5
+  retlw b'10001000'
+  retlw b'10110110'
+  retlw b'10000000'
+  retlw b'10000010'
 
 clock_values_update:
 check_s0:
   movf s_0, 0
-  movwf J
-  movlw 0x09
-  movwf I
-  call is_min
-  movwf TMP0
-  btfss TMP0, 0
-  goto check_s1
-  movlw 0x00
-  movwf s_0
-  incf s_1
+  sublw 0x09
+  btfss STATUS, C
+  goto res_s0
+  ;incf s_0
+  goto check_end
+res_s0:
+  clrf s_0
 check_s1:
   movf s_1, 0
-  movwf J
-  movlw 0x05
-  movwf I
-  call is_min
-  movwf TMP0
-  btfss TMP0, 0
-  goto check_m0
-  movlw 0x00
-  movwf s_1
-  incf m_0
+  sublw 0x04
+  btfss STATUS, C
+  goto res_s1
+  incf s_1
+  goto check_end
+res_s1:
+  clrf s_1
 check_m0:
   movf m_0, 0
-  movwf J
-  movlw 0x09
-  movwf I
-  call is_min
-  movwf TMP0
-  btfss TMP0, 0
-  goto check_m1
-  movlw 0x00
-  movwf m_0
-  incf m_1
+  sublw 0x08
+  btfss STATUS, C
+  goto res_m0
+  incf m_0
+  goto check_end
+res_m0:
+  clrf m_0
 check_m1:
   movf m_1, 0
-  movwf J
-  movlw 0x05
-  movwf I
-  call is_min
-  movwf TMP0
-  btfss TMP0, 0
-  goto check_h0h1
-  movlw 0x00
-  movwf m_1
-  incf h_0
-check_h0h1:
-  movf h_0, 0
-  movwf J
-  movlw 0x03
-  movwf I
-  call is_min
-  movwf TMP0
-  btfss TMP0, 0
-  goto check_h0
-  movf h_1, 0
-  movwf J
-  movlw 0x01
-  movwf I
-  call is_min
-  movwf TMP0
-  btfss TMP0, 0
-  goto check_h0
-  movlw 0x00
-  movwf h_0
-  movwf h_1
+  sublw 0x04
+  btfss STATUS, C
+  goto res_m1
+  incf m_1
+  goto check_end
+res_m1:
+  clrf m_1
 check_h0:
   movf h_0, 0
-  movwf J
-  movlw 0x09
-  movwf I
-  call is_min
-  movwf TMP0
-  btfss TMP0, 0
-  goto check_h1
-  movlw 0x00
-  movwf h_0
-  incf h_1
+  sublw 0x03
+  btfsc STATUS, 2
+  goto check_h0h1
+  movf h_0, 0
+  sublw 0x09
+  btfsc STATUS, 2
+  goto res_h0
+  incf h_0
+  goto check_end
+check_h0h1:
+  movf h_1, 0
+  sublw 0x02
+  btfsc STATUS, 2
+  goto res_h1
+  incf h_0
+  goto check_end
+res_h0:
+  clrf h_0
 check_h1:
-  nop
+  movf h_1, 0
+  sublw 0x02
+  btfsc STATUS, 2
+  goto res_h1
+  incf h_1
+  goto check_end
+res_h1:
+  clrf h_0
+  clrf h_1
+check_end:
   return
 
 init:
@@ -197,13 +158,12 @@ init:
   bsf TRISA, 4 ; PORTA<4> come input
   bcf STATUS, 5
   
-  movlw 0x00
-  movwf s_0
-  movwf s_1
-  movwf m_0
-  movwf m_1
-  movwf h_0
-  movwf h_1
+  clrf s_0
+  clrf s_1
+  clrf m_0
+  clrf m_1
+  clrf h_0
+  clrf h_1
 
 loop:
   movlw 0x00
@@ -220,24 +180,18 @@ no_flag:
   ; fine controllo FLAG
   btfsc PORTA, 4 ; se PORTA<5> == 0 => aumenta di 10 secondi e aggiorna
   goto led_driver_loop
-  movlw 0x10
+  movlw 0x50
   addwf s_0, 1
   call clock_values_update
 led_driver_loop:
   movlw 0x00
   movwf PORTA
   movf LED_DRIVER_C, 0
-  movwf I
-  movlw 0x06
-  movwf J
-  call is_min
-  movwf TMP0
-  btfss TMP0, 0 ; se LED_DRIVER_C < 6
+  sublw 0x06
+  btfss STATUS, C ; se LED_DRIVER_C < 6
   goto loop
   movf INDF, 0 ; lettura registro tramite indirizzamento indiretto
   call to_led
-  movwf TMP1
-  comf TMP1, 0
   movwf PORTB
   movf LED_DRIVER_C, 0
   call led_driver_offset
