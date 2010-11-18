@@ -1,4 +1,4 @@
-; binaryClock, just another binary clock written in 8-bit-microchip-Assembly
+; uClock, just a simple clock written in 8-bit-microchip-Assembly (running on a pic16F628A)
 ;
 ; Copyright (C) 2010 Thomas Bertani <sylar@anche.no>
 ;
